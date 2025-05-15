@@ -3,8 +3,11 @@ const express = require("express");
 const productRoutes = require("./routes/productRoutes");
 const CustAuthRoutes = require("./routes/CustAuth");
 const CustOrderRoutes = require("./routes/CustOrderRoutes")
-const app = express();
+const cors = require('cors');
 
+const app = express();
+// Use CORS middleware
+app.use(cors());
 app.use(express.json());
 app.use("/api/products", productRoutes);
 app.use("/api/CustomerAuth", CustAuthRoutes);
