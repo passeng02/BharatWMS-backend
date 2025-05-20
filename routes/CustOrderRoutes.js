@@ -7,31 +7,19 @@ const router = express.Router();
 // Place an order (authenticated)
 router.post("/placeOrder", authMiddleware, async (req, res) => {
     try {
-        console.log("Incoming order request body:", JSON.stringify(req.body, null, 2));
-
-        // Validate request body structure
-        if (!req.body || typeof req.body !== 'object') {
-            return res.status(400).json({ error: "Invalid or missing request body." });
+        // Expect the request body to be an array directly
+        if (!Array.isArray(req.body.orderItems)) {
+            throw new Error('Request body must be an array of order items');
         }
-
-        const { orderItems } = req.body;
-
-
+        
         // Process each order item sequentially
-        for (const item of orderItems) {
-            const { Product_ID, Product_Name, SKU_Name, Quantity, Customer_ID } = item;
+        for (const item of req.body.orderItems) {
+            const { Product_ID, Product_Name, SKU_ID, SKU_Name, Quantity, Customer_ID } = item;
 
-            // Get SKU_ID from SKU_Name
-            const [skuResults] = await db.query(
-                "SELECT SKU_ID FROM SKU WHERE SKU_Name = ?",
-                [SKU_Name]
-            );
-
-            if (!skuResults.length) {
-                throw new Error(`SKU not found: ${SKU_Name}`);
+            // Validate required fields
+            if (!SKU_ID || !Quantity || !Customer_ID) {
+                throw new Error('Missing required fields: SKU_ID, Quantity, and Customer_ID are required');
             }
-
-            const SKU_ID = parseInt(skuResults[0].SKU_ID);
 
             // Calculate dates
             const createdAt = new Date();
@@ -71,6 +59,45 @@ router.post("/placeOrder", authMiddleware, async (req, res) => {
         console.error("Error placing order:", err);
         res.status(500).json({ 
             error: "Failed to place order", 
+            details: err.message 
+        });
+    }
+});
+
+//To get the list of orders from the customer
+router.get("/viewOrders", async (req, res) => {
+    
+    try {
+    const customerId = req.query.Customer_Id;
+    console.log(customerId)
+    // Get all outbound shipments for this customer, including SKU and product info
+    const [orders] = await db.query(
+        `SELECT 
+            os.Shipment_ID,
+            os.SKU_ID,
+            os.created_at,
+            os.ship_by,
+            os.S_Status,
+            ss.Quantity as Ordered_Quantity,
+            s.SKU_Name,
+            p.Product_name,
+            p.Product_Description,
+            p.Product_Category
+        FROM outbound_shipment os
+        LEFT JOIN sku_shipment ss ON os.Shipment_ID = ss.Shipment_ID
+        LEFT JOIN SKU s ON os.SKU_ID = s.SKU_ID
+        LEFT JOIN Product p ON s.Product_ID = p.Product_ID
+        WHERE os.Customer_ID = ?
+        ORDER BY os.created_at ASC`,
+        [customerId]
+    );
+    console.log(orders)
+    res.json( orders );
+    }
+    catch(err){
+        console.error("Error placing order:", err);
+        res.status(500).json({ 
+            error: "Cannot Fetch Orders ", 
             details: err.message 
         });
     }

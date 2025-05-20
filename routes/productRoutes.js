@@ -55,18 +55,73 @@ router.get("/productNdSKU", async (req, res) => {
     }
 });
 
-// Create a new product
+// Create a new product and corresponding SKUs
 router.post("/", async (req, res) => {
     try {
-        const { Product_name, Product_Description, Product_Category } = req.body;
+        const { Product_Name, Product_Description, Product_Category, SKUs } = req.body;
+        // Check if product with the same Product_name already exists
+        const [existingProducts] = await db.query(
+            "SELECT * FROM Product WHERE Product_name = ?",
+            [Product_Name]
+        );
+        if (existingProducts.length > 0) {
+            // Product exists, check if SKUs exist with given SKU_Name
+            if (!Array.isArray(SKUs) || SKUs.length === 0) {
+                return res.status(400).json({ error: "Product already exists and no SKUs provided" });
+            }
+            // Check for each SKU_Name if it exists for this product
+            const productId = existingProducts[0].Product_ID;
+            for (const sku of SKUs) {
+                const [existingSKUs] = await db.query(
+                    "SELECT * FROM SKU WHERE SKU_Name = ? AND Product_ID = ?",
+                    [sku.SKU_Name, productId]
+                );
+                if (existingSKUs.length > 0) {
+                    throw new Error(`SKU with name '${sku.SKU_Name}' already exists for this product`);
+                }
+                else {
+                await db.query(
+                    "INSERT INTO SKU (SKU_Name, Quantity_Available, Minimum_Stock_Level, Maximum_Stock_Level, Reorder_Point, Product_ID) VALUES (?, ?, ?, ?, ?, ?)",
+                    [
+                        sku.SKU_Name,
+                        sku.Quantity_Available,
+                        sku.Minimum_Stock_Level,
+                        sku.Maximum_Stock_Level,
+                        sku.Reorder_Point,
+                        productId
+                    ]
+                );
+            }
+            }
+        }
+
         const [result] = await db.query(
             "INSERT INTO Product (Product_name, Product_Description, Product_Category) VALUES (?, ?, ?)",
-            [Product_name, Product_Description, Product_Category]
+            [Product_Name, Product_Description, Product_Category]
         );
+
+
+
+        
+
+        for (const sku of SKUs) {
+            await db.query(
+                "INSERT INTO SKU (SKU_Name, Quantity_Available, Minimum_Stock_Level, Maximum_Stock_Level, Reorder_Point, Product_ID) VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    sku.SKU_Name,
+                    sku.Quantity_Available,
+                    sku.Minimum_Stock_Level,
+                    sku.Maximum_Stock_Level,
+                    sku.Reorder_Point,
+                    result.insertId
+                ]
+            );
+
+        }
         res.json({ message: "Product added", id: result.insertId });
     } catch (err) {
         console.error("Error creating product:", err);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: err.message || "Internal server error" });
     }
 });
 

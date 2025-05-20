@@ -5,7 +5,7 @@ const db = require("../db");
 const { body, validationResult } = require("express-validator");
 
 const router = express.Router();
-const JWT_SECRET = "1234"; // Change this to a secure key
+const JWT_SECRET = process.env.JWT_SECRET; // Change this to a secure key
 
 // Customer Registration
 router.post("/register", [
