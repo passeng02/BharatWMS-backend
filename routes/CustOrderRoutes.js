@@ -4,14 +4,15 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// Place an order (authenticated)
+
+async function assignPicker() {
+}
 router.post("/placeOrder", authMiddleware, async (req, res) => {
     try {
         // Expect the request body to be an array directly
         if (!Array.isArray(req.body.orderItems)) {
             throw new Error('Request body must be an array of order items');
         }
-        
         // Process each order item sequentially
         for (const item of req.body.orderItems) {
             const { Product_ID, Product_Name, SKU_ID, SKU_Name, Quantity, Customer_ID } = item;
@@ -20,7 +21,6 @@ router.post("/placeOrder", authMiddleware, async (req, res) => {
             if (!SKU_ID || !Quantity || !Customer_ID) {
                 throw new Error('Missing required fields: SKU_ID, Quantity, and Customer_ID are required');
             }
-
             // Calculate dates
             const createdAt = new Date();
             const ship_by = new Date(createdAt);
@@ -28,7 +28,7 @@ router.post("/placeOrder", authMiddleware, async (req, res) => {
 
             const formattedCreatedAt = createdAt.toISOString().slice(0, 19).replace("T", " ");
             const formattedShipBy = ship_by.toISOString().slice(0, 19).replace("T", " ");
-
+            
             // Update SKU quantity
             await db.query(
                 "UPDATE SKU SET Quantity_Available = Quantity_Available - ? WHERE SKU_ID = ?",
@@ -63,7 +63,6 @@ router.post("/placeOrder", authMiddleware, async (req, res) => {
         });
     }
 });
-
 //To get the list of orders from the customer
 router.get("/viewOrders", async (req, res) => {
     
